@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace NetCoreAdoNet.Repositories
 {
@@ -25,7 +26,7 @@ namespace NetCoreAdoNet.Repositories
             string sql = "select distinct OFICIO from EMP";
             this.com.CommandType = CommandType.Text;
             this.com.CommandText = sql;
-            
+
             await this.cn.OpenAsync();
 
             this.reader = await this.com.ExecuteReaderAsync();
@@ -71,7 +72,7 @@ namespace NetCoreAdoNet.Repositories
             return empleados;
         }
 
-        public async Task<int> UpdateSalarioEmpleadosAsync(string oficio, int incremento) 
+        public async Task<int> UpdateSalarioEmpleadosAsync(string oficio, int incremento)
         {
             string sql = "update EMP set SALARIO = SALARIO + @incremento where OFICIO = @oficio";
 
@@ -88,6 +89,41 @@ namespace NetCoreAdoNet.Repositories
             this.com.Parameters.Clear();
 
             return registros;
+        }
+
+        // New: devuelve suma, media y máximo de SALARIO para un oficio
+        public async Task<(decimal suma, decimal media, decimal maximo)> GetSalaryStatsByOficioAsync(string oficio)
+        {
+            string sql = "select SUM(SALARIO) as Suma, AVG(SALARIO) as Media, MAX(SALARIO) as Maximo from EMP where OFICIO = @oficio";
+
+            this.com.Parameters.AddWithValue("@oficio", oficio);
+            this.com.CommandType = CommandType.Text;
+            this.com.CommandText = sql;
+
+            await this.cn.OpenAsync();
+
+            this.reader = await this.com.ExecuteReaderAsync();
+
+            decimal suma = 0m;
+            decimal media = 0m;
+            decimal maximo = 0m;
+
+            if (await this.reader.ReadAsync())
+            {
+                object objSuma = this.reader["Suma"];
+                object objMedia = this.reader["Media"];
+                object objMaximo = this.reader["Maximo"];
+
+                if (objSuma != DBNull.Value) suma = Convert.ToDecimal(objSuma);
+                if (objMedia != DBNull.Value) media = Convert.ToDecimal(objMedia);
+                if (objMaximo != DBNull.Value) maximo = Convert.ToDecimal(objMaximo);
+            }
+
+            await this.reader.CloseAsync();
+            await this.cn.CloseAsync();
+            this.com.Parameters.Clear();
+
+            return (suma, media, maximo);
         }
     }
 }
